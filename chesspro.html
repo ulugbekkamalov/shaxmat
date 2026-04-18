@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChessPro</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap');
+:root{
+  --light:#f0d9b5;--dark:#b58863;
+  --bg:#1a1a18;--panel:#232320;--panel2:#2c2c29;
+  --accent:#769656;--acc2:#b0c050;
+  --border:#3a3a36;--text:#d8d3ca;--text2:#7a7a70;
+  --lmh:rgba(205,210,106,.5);--lmd:rgba(170,162,58,.5);
+  --danger:#c0392b;--warn:#e67e22;--info:#2980b9;
+  --premove:rgba(100,60,200,.55);
+  --f1:'IBM Plex Sans',sans-serif;--fm:'IBM Plex Mono',monospace;--fd:'Playfair Display',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--f1);font-size:14px}
+.nav{background:#111110;border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:0;height:46px;flex-shrink:0}
+.logo{font-family:var(--fd);font-size:1.25em;color:var(--acc2);margin-right:20px;font-weight:900;letter-spacing:-.5px}
+.logo b{color:var(--accent)}
+.tabs{display:flex;gap:2px;flex:1}
+.tab{background:none;border:none;color:var(--text2);padding:6px 14px;cursor:pointer;border-radius:5px;font-size:.82em;font-weight:700;font-family:var(--f1);transition:.14s;white-space:nowrap}
+.tab:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.tab.on{color:#fff;background:var(--accent)}
+.ai-status{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:.75em;color:var(--text2)}
+.dot{width:7px;height:7px;border-radius:50%;background:#444;transition:.3s;flex-shrink:0}
+.dot.ready{background:#2ecc71}.dot.thinking{background:#f39c12;animation:blink .6s infinite}
+.app{flex:1;display:flex;overflow:hidden}
+.game-area{flex:1;display:flex;align-items:center;justify-content:center;gap:14px;padding:12px;position:relative}
+.right-panel{width:255px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;padding:10px 10px 10px 0;flex-shrink:0}
+.board-section{display:flex;flex-direction:column;align-items:center;gap:2px}
+.player-strip{width:100%;display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel);border:1px solid var(--border);border-radius:7px}
+.p-avatar{width:30px;height:30px;border-radius:50%;background:var(--panel2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0}
+.p-info{flex:1;min-width:0}
+.p-name{font-weight:700;font-size:.88em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-caps{display:flex;flex-wrap:wrap;gap:1px;min-height:16px;align-items:center;margin-top:1px}
+.cap-p{font-size:.95em;line-height:1;opacity:.75}
+.score-adv{font-size:.72em;color:var(--acc2);font-weight:700;margin-left:3px}
+.timer{font-family:var(--fm);font-size:1.55em;font-weight:700;padding:4px 9px;background:#111;border:1px solid var(--border);border-radius:6px;min-width:84px;text-align:center;transition:.25s;color:var(--text2)}
+.timer.active{border-color:var(--accent);color:var(--acc2)}.timer.low{border-color:#e74c3c;color:#e74c3c;animation:pulse 1s infinite}
+.board-outer{display:flex;gap:3px}
+.rank-col{display:flex;flex-direction:column;width:18px}
+.rank-lbl{font-size:.68em;font-weight:700;color:var(--text2);font-family:var(--fm);text-align:right;padding-right:3px;display:flex;align-items:center;justify-content:flex-end}
+.board-col{display:flex;flex-direction:column;gap:0}
+.file-row{display:flex}
+.file-lbl{font-size:.68em;font-weight:700;color:var(--text2);font-family:var(--fm);text-align:center;line-height:1;margin-top:3px}
+#board{position:relative;border:2px solid #2e2e2a;box-shadow:0 10px 40px rgba(0,0,0,.7)}
+.sq{position:absolute;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sq.light{background:var(--light)}.sq.dark{background:var(--dark)}
+.sq.sel{background:rgba(20,120,30,.42)!important;box-shadow:inset 0 0 0 4px rgba(20,100,20,.55)}
+.sq.lmh{background:var(--lmh)!important}.sq.lmd{background:var(--lmd)!important}
+.sq.check-sq{background:radial-gradient(circle,rgba(220,30,30,.9) 0%,rgba(200,0,0,.4) 55%,transparent 80%)!important}
+.sq.premove-from{background:rgba(100,60,200,.45)!important}
+.sq.premove-to{background:rgba(140,80,255,.5)!important;box-shadow:inset 0 0 0 3px rgba(140,80,255,.7)}
+.mdot{position:absolute;border-radius:50%;pointer-events:none;z-index:3}
+.mdot.empty{width:32%;height:32%;background:rgba(0,0,0,.2)}
+.mdot.cap{width:100%;height:100%;background:transparent;box-shadow:inset 0 0 0 4px rgba(0,0,0,.2);border-radius:50%}
+.piece{position:absolute;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:4}
+.piece:active{cursor:grabbing}
+.piece svg{width:100%;height:100%;filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}
+#ghost{position:fixed;pointer-events:none;z-index:9999;display:none;transform:translate(-50%,-50%)}
+#ghost svg{filter:drop-shadow(0 4px 14px rgba(0,0,0,.6))}
+#hint-cvs{position:absolute;top:0;left:0;pointer-events:none;z-index:10}
+.eval-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;width:12px}
+.eval-bar{flex:1;background:#1e1e1b;border:1px solid var(--border);border-radius:4px;overflow:hidden;position:relative;width:12px}
+.eval-fill{position:absolute;left:0;right:0;bottom:0;background:var(--light);transition:height .4s ease}
+.eval-score{font-family:var(--fm);font-size:.6em;color:var(--text2);font-weight:700;text-align:center}
+.go-banner{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:50;pointer-events:none}
+.go-banner.show{display:flex}
+.go-box{background:rgba(12,12,11,.94);border:1px solid var(--border);border-radius:12px;padding:18px 32px;text-align:center;pointer-events:all;backdrop-filter:blur(8px)}
+.go-title{font-family:var(--fd);font-size:1.5em;font-weight:900;margin-bottom:5px}
+.go-reason{color:var(--text2);font-size:.88em;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:9px 11px}
+.card-title{font-size:.73em;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);font-weight:700;margin-bottom:7px}
+.status-bar{text-align:center;font-size:.84em;font-weight:700;padding:7px 10px;border-radius:6px;background:var(--panel2);border:1px solid var(--border)}
+.status-bar.check-s{color:#e74c3c}.status-bar.good{color:var(--acc2)}.status-bar.inf{color:#5dade2}
+.status-bar.premove-s{color:#a070ff}
+.hist-body{max-height:220px;overflow-y:auto}
+.move-row{display:flex;gap:2px;margin:1px 0;align-items:center}
+.move-n{font-size:.75em;color:var(--text2);min-width:22px;font-family:var(--fm)}
+.move-btn{flex:1;padding:2px 5px;border-radius:3px;cursor:pointer;font-size:.8em;font-family:var(--fm);font-weight:600;color:var(--text);transition:.1s;background:none;border:none;text-align:left}
+.move-btn:hover{background:rgba(255,255,255,.07)}.move-btn.cur{background:var(--accent);color:#fff}
+.hint-move{font-family:var(--fm);font-size:1.1em;font-weight:700;color:var(--acc2)}
+.hint-sub{font-size:.8em;color:var(--text2)}.hint-thinking{font-style:italic;color:var(--text2);font-size:.85em}
+.btn-row{display:flex;gap:5px;flex-wrap:wrap}
+.btn{padding:5px 11px;border:none;border-radius:5px;cursor:pointer;font-size:.8em;font-weight:700;font-family:var(--f1);transition:.14s;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.bg{background:var(--accent);color:#fff}.bg:hover{background:#5a7c3e}
+.bs{background:var(--panel2);color:var(--text);border:1px solid var(--border)}.bs:hover{background:#333330}
+.br{background:var(--danger);color:#fff}.br:hover{background:#a93226}
+.bw{background:var(--warn);color:#fff}.bw:hover{background:#d35400}
+.bb{background:var(--info);color:#fff}.bb:hover{background:#2471a3}
+.bv{background:#6040c0;color:#fff}.bv:hover{background:#4d30a0}
+.btn:disabled{opacity:.38;cursor:not-allowed!important}
+.premove-queue{background:var(--panel);border:1px solid rgba(100,60,200,.5);border-radius:7px;padding:8px 11px}
+.premove-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-family:var(--fm);font-size:.82em;color:#c0a0ff}
+.premove-badge{background:rgba(100,60,200,.3);border:1px solid rgba(100,60,200,.5);border-radius:3px;padding:1px 5px;font-size:.75em;color:#a080ff}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.overlay.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:22px;width:360px;max-width:95vw;box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.modal h2{font-family:var(--fd);font-size:1.25em;color:var(--acc2);margin-bottom:12px}
+.modal p{color:var(--text2);margin-bottom:10px;line-height:1.5;font-size:.9em}
+.promo-grid{display:flex;gap:8px;justify-content:center;margin:10px 0}
+.promo-c{width:70px;height:70px;background:var(--panel2);border:2px solid var(--border);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.14s}
+.promo-c:hover{border-color:var(--accent);transform:scale(1.07)}
+.promo-c svg{width:54px;height:54px}
+.remote-screen{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px}
+.remote-title{font-family:var(--fd);font-size:1.5em;color:var(--acc2);text-align:center}
+.remote-opts{display:flex;gap:10px}
+.remote-opt{width:130px;padding:16px 10px;background:var(--panel);border:2px solid var(--border);border-radius:9px;cursor:pointer;text-align:center;transition:.14s}
+.remote-opt:hover,.remote-opt.sel{border-color:var(--accent);background:var(--panel2)}
+.remote-opt .ico{font-size:1.8em;margin-bottom:6px}
+.remote-opt .lbl{font-size:.82em;font-weight:700}
+.code-big{font-family:var(--fm);font-size:2.8em;font-weight:900;letter-spacing:.4em;color:var(--acc2);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:11px 18px;user-select:all;text-align:center}
+.code-in{background:var(--panel2);border:2px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--fm);font-size:2em;font-weight:700;letter-spacing:.3em;padding:9px 13px;text-align:center;width:200px;outline:none;transition:.14s}
+.code-in:focus{border-color:var(--accent)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+.settings-screen{flex:1;display:none;overflow-y:auto;padding:16px}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:700px;margin:0 auto}
+.set-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px}
+.set-card h3{font-size:.78em;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:9px}
+.set-row{display:flex;align-items:center;justify-content:space-between;margin:7px 0;gap:8px;font-size:.84em}
+select,.srange{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:4px 7px;font-family:var(--f1);cursor:pointer;outline:none}
+select:focus{border-color:var(--accent)}.srange{accent-color:var(--accent);width:85px}
+.dval{font-family:var(--fm);color:var(--acc2);font-weight:700;min-width:22px}
+.notif{position:fixed;bottom:16px;right:16px;background:var(--accent);color:#fff;padding:8px 14px;border-radius:7px;font-weight:700;z-index:9000;opacity:0;transform:translateY(12px);transition:.22s;pointer-events:none;font-size:.82em}
+.notif.show{opacity:1;transform:translateY(0)}.notif.err{background:var(--danger)}.notif.inf{background:var(--info)}.notif.pre{background:#6040c0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">♟ Chess<b>Pro</b></div>
+  <div class="tabs">
+    <button class="tab on" onclick="switchMode('ai')">🤖 AI bilan</button>
+    <button class="tab" onclick="switchMode('local')">👥 2 Kishilik</button>
+    <button class="tab" onclick="switchMode('remote')">🌐 Masofaviy</button>
+    <button class="tab" onclick="switchMode('settings')">⚙️ Sozlamalar</button>
+  </div>
+  <div class="ai-status"><div class="dot" id="aidot"></div><span id="aitxt">Yuklanmoqda...</span></div>
+</nav>
+<div class="app">
+
+<div class="game-area" id="gameArea">
+  <div class="eval-wrap" id="evalWrap">
+    <div class="eval-score" id="evalTop"></div>
+    <div class="eval-bar" id="evalBar"><div class="eval-fill" id="evalFill" style="height:50%"></div></div>
+    <div class="eval-score" id="evalBot">0.0</div>
+  </div>
+  <div class="board-section" id="boardSection">
+    <div class="player-strip" id="stripTop">
+      <div class="p-avatar" id="avatarTop">♟</div>
+      <div class="p-info">
+        <div class="p-name" id="nameTop">Qora</div>
+        <div class="p-caps" id="capsTop"></div>
+      </div>
+      <div class="timer" id="timerTop">∞</div>
+    </div>
+    <div class="board-outer">
+      <div class="rank-col" id="rankCol"></div>
+      <div class="board-col">
+        <div style="position:relative">
+          <div id="board"></div>
+          <canvas id="hint-cvs"></canvas>
+          <div class="go-banner" id="goBanner">
+            <div class="go-box">
+              <div class="go-title" id="goTitle">Oyin tugadi</div>
+              <div class="go-reason" id="goReason"></div>
+              <div class="btn-row" style="justify-content:center;margin-top:4px">
+                <button class="btn bg" onclick="newGame()">🔄 Yangi oyin</button>
+                <button class="btn bs" onclick="closeGO()">✕ Yopish</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="file-row" id="fileRow"></div>
+      </div>
+    </div>
+    <div class="player-strip" id="stripBot">
+      <div class="p-avatar" id="avatarBot">♙</div>
+      <div class="p-info">
+        <div class="p-name" id="nameBot">Oq</div>
+        <div class="p-caps" id="capsBot"></div>
+      </div>
+      <div class="timer" id="timerBot">∞</div>
+    </div>
+  </div>
+  <div class="right-panel">
+    <div class="status-bar inf" id="statusBar">Oyin boshlandi</div>
+    <div class="card">
+      <div class="card-title">💡 Maslahat</div>
+      <div id="hintArea"><span class="hint-thinking">Tugmani bosing</span></div>
+    </div>
+    <div id="premoveCard" class="premove-queue" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span style="font-size:.72em;text-transform:uppercase;letter-spacing:.6px;color:#a080ff;font-weight:700">⏭ Oldindan Belgilangan</span>
+        <button class="btn" style="padding:2px 7px;font-size:.72em;background:rgba(200,0,0,.2);color:#ff8080;border:1px solid rgba(200,0,0,.3)" onclick="clearPremoves()">✕ Tozalash</button>
+      </div>
+      <div id="premoveList"></div>
+    </div>
+    <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div class="card-title">📋 Yurishlar tarixi</div>
+      <div class="hist-body" id="histBody"></div>
+    </div>
+    <div class="card">
+      <div class="btn-row" style="margin-bottom:5px">
+        <button class="btn bs" id="btnUndo" onclick="undoMove()">⟵ Ortga</button>
+        <button class="btn bs" id="btnRedo" onclick="redoMove()">Oldinga ⟶</button>
+        <button class="btn bs" onclick="flipBoard()">🔄 Flip</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn bb" id="btnHint" onclick="getHint()">💡 Maslahat</button>
+        <button class="btn bw" id="btnDraw" onclick="offerDraw()">🤝 Durrang</button>
+        <button class="btn br" id="btnResign" onclick="resignGame()">🏳 Taslim</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="remote-screen" id="remoteScreen">
+  <div class="remote-title">🌐 Masofaviy O'yin</div>
+  <p style="color:var(--text2);text-align:center;max-width:320px;font-size:.88em">Do'stingiz bilan 4 raqamli kod orqali uling</p>
+  <div class="remote-opts">
+    <div class="remote-opt sel" id="optCreate" onclick="remOpt('create')">
+      <div class="ico">➕</div><div class="lbl">Xona yaratish</div>
+    </div>
+    <div class="remote-opt" id="optJoin" onclick="remOpt('join')">
+      <div class="ico">🔗</div><div class="lbl">Xonaga kirish</div>
+    </div>
+  </div>
+  <div id="createSec" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button class="btn bg" onclick="createRoom()">Xona yaratish</button>
+  </div>
+  <div id="joinSec" style="display:none;flex-direction:column;align-items:center;gap:10px">
+    <input class="code-in" id="joinInput" maxlength="4" placeholder="XXXX" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"/>
+    <button class="btn bg" onclick="joinRoom()">Ulanish</button>
+  </div>
+  <div id="roomSec" style="display:none;flex-direction:column;align-items:center;gap:12px">
+    <div class="code-big" id="roomCode">----</div>
+    <div style="display:flex;align-items:center;gap:10px;color:var(--text2)">
+      <div class="spinner" id="remSpinner"></div><span id="remWaitTxt">Kutilmoqda...</span>
+    </div>
+    <button class="btn bs" onclick="cancelRoom()">Bekor qilish</button>
+  </div>
+</div>
+
+<div class="settings-screen" id="settingsScreen">
+  <div class="settings-grid">
+    <div class="set-card"><h3>🤖 AI Sozlamalari</h3>
+      <div class="set-row"><label>Qiyinlik (1-20)</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="range" class="srange" id="diffSlider" min="1" max="20" value="10" oninput="setDiff(this.value)">
+          <span class="dval" id="diffVal">10</span></div></div>
+      <div class="set-row"><label>Siz rangi</label>
+        <select id="aiColorSel" onchange="saveSett()">
+          <option value="w">Oq</option><option value="b">Qora</option><option value="r">Tasodifiy</option>
+        </select></div></div>
+    <div class="set-card"><h3>⏱ Vaqt Nazorati</h3>
+      <div class="set-row"><label>Vaqt rejimi</label>
+        <select id="tcSel" onchange="saveSett()">
+          <option value="none">Vaqtsiz ∞</option>
+          <option value="1+0">1+0 Bullet</option><option value="2+1">2+1 Bullet</option>
+          <option value="3+0">3+0 Blitz</option><option value="3+2">3+2 Blitz</option>
+          <option value="5+0">5+0 Blitz</option><option value="5+3">5+3 Blitz</option>
+          <option value="10+0">10+0 Rapid</option><option value="10+5">10+5 Rapid</option>
+          <option value="15+10">15+10 Rapid</option><option value="30+0">30+0 Klassik</option>
+        </select></div></div>
+    <div class="set-card"><h3>🎨 Doska Ko'rinishi</h3>
+      <div class="set-row"><label>Rang</label>
+        <select id="themeSel" onchange="applyTheme(this.value);saveSett()">
+          <option value="brown">Jigarrang</option><option value="green">Yashil</option>
+          <option value="blue">Ko'k</option><option value="grey">Kulrang</option>
+        </select></div>
+      <div class="set-row"><label>Maslahat o'qi</label>
+        <select id="arrowSel" onchange="saveSett()">
+          <option value="1">Ko'rsatish</option><option value="0">Yashirish</option>
+        </select></div>
+      <div class="set-row"><label>Oldindan yurish</label>
+        <select id="premoveSel" onchange="saveSett()">
+          <option value="1">Yoqilgan</option><option value="0">O'chirilgan</option>
+        </select></div></div>
+    <div class="set-card" style="grid-column:1/-1"><h3>💾 Ma'lumotlar</h3>
+      <div class="btn-row">
+        <button class="btn br" onclick="clearData()">🗑 Barcha ma'lumotlarni o'chirish</button>
+        <button class="btn bs" onclick="exportPGN()">📤 PGN eksport</button>
+      </div></div>
+  </div>
+</div>
+
+</div>
+
+<div class="overlay" id="promoModal">
+  <div class="modal">
+    <h2>♟ Piyodani almashtirish</h2>
+    <p>Qaysi toshga almashtiramiz?</p>
+    <div class="promo-grid" id="promoGrid"></div>
+  </div>
+</div>
+<div class="overlay" id="drawModal">
+  <div class="modal">
+    <h2>🤝 Durrang taklifi</h2>
+    <p id="drawTxt">Durrang qabul qilinsinmi?</p>
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn bg" onclick="acceptDraw()">✓ Qabul</button>
+      <button class="btn br" onclick="declineDraw()">✗ Rad etish</button>
+    </div>
+  </div>
+</div>
+<div id="ghost"></div>
+<div class="notif" id="notif"></div>
+
+<script>
+// ===== PIECE SVGs =====
+const SVG={
+wP:`<svg viewBox="0 0 45 45"><g fill="#fff" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C16.83 16.5 15.5 18.6 15.5 21c0 2.03.94 3.84 2.41 5.03C14.91 27.09 10.5 31.58 10.5 39.5h24c0-7.92-4.41-12.41-7.41-13.47A6.5 6.5 0 0028.5 21c0-2.4-1.33-4.5-3.28-5.62C25.71 14.71 26 13.89 26 13c0-2.21-1.79-4-4-4z"/></g></svg>`,
+wR:`<svg viewBox="0 0 45 45"><g fill="#fff" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3zM12 36v-4h21v4H12zM11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3M14 17v15h17V17H14z"/><path d="M11 14h23" fill="none"/></g></svg>`,
+wN:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="#fff"/><path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="#fff"/><path d="M9.5 25.5a.5.5 0 11-1 0 .5.5 0 011 0z" fill="#000"/><path d="M15 15.5a.5 1.5 0 11-1 0" transform="matrix(.866.5-.5.866 9.693-5.173)" fill="#000"/></g></svg>`,
+wB:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-1.03 10.11.43 13.5-2 3.39 2.43 10.11.97 13.5 2 0 0 1.65.54 3 2-.68.97-1.8.99-3 .5-3.39-1.03-10.11.43-13.5-2-3.39 2.43-10.11.97-13.5 2-1.2.49-2.32.47-3-.5C7.35 36.54 9 36 9 36z" fill="#fff"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4C33 24.5 33.5 14.5 22.5 10.5 11.5 14.5 12 24.5 17.5 26c0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z" fill="#fff"/><circle cx="22.5" cy="8" r="2.5" fill="#fff"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" fill="none"/></g></svg>`,
+wQ:`<svg viewBox="0 0 45 45"><g fill="#fff" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.75"/><circle cx="14" cy="9" r="2.75"/><circle cx="22.5" cy="8" r="2.75"/><circle cx="31" cy="9" r="2.75"/><circle cx="39" cy="12" r="2.75"/><path d="M9 26c8.5-1.5 21-1.5 27 0l2.5-13.5L31 25l-.7-14.1-5.2 13.6-2.6-14.5-2.6 14.5-5.2-13.6L14 25 6.5 12.5 9 26z" stroke-linecap="butt"/><path d="M9 26c0 2 1.5 2 2.5 4s2 2 2 3.5c-1 1.5.5 2 .5 2 5.5 2 17.5 2 23 0 0 0 1.5-.5.5-2 0-1.5 1-2 2-3.5S36 28 36 26c-8.5-1.5-18.5-1.5-27 0z"/><path d="M11.5 30c3.5-1 18-1 22 0M12 33.5c3.5-1 17-1 21 0" fill="none"/></g></svg>`,
+wK:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6M20 8h5" stroke-linejoin="miter"/><path d="M22.5 25c0 0 4.5-7.5 3-10.5 0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" fill="#fff"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0V30s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 1v0c-2.5-4.5-12-7.5-16-1-3 6 5 10.5 5 10.5V37z" fill="#fff"/><path d="M12.5 30c5.5-3 14.5-3 20 0M12.5 33.5c5.5-3 14.5-3 20 0M12.5 37c5.5-3 14.5-3 20 0" fill="none"/></g></svg>`,
+bP:`<svg viewBox="0 0 45 45"><g fill="#1a1a1a" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9c-2.21 0-4 1.79-4 4 0 .89.29 1.71.78 2.38C16.83 16.5 15.5 18.6 15.5 21c0 2.03.94 3.84 2.41 5.03C14.91 27.09 10.5 31.58 10.5 39.5h24c0-7.92-4.41-12.41-7.41-13.47A6.5 6.5 0 0028.5 21c0-2.4-1.33-4.5-3.28-5.62C25.71 14.71 26 13.89 26 13c0-2.21-1.79-4-4-4z"/></g></svg>`,
+bR:`<svg viewBox="0 0 45 45"><g fill="#1a1a1a" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 39h27v-3H9v3zM12 36v-4h21v4H12zM11 14V9h4v2h5V9h5v2h5V9h4v5"/><path d="M34 14l-3 3H14l-3-3M14 17v15h17V17H14z"/></g></svg>`,
+bN:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10c10.5 1 16.5 8 16 29H15c0-9 10-6.5 8-21" fill="#1a1a1a"/><path d="M24 18c.38 2.91-5.55 7.37-8 9-3 2-2.82 4.34-5 4-1.042-.94 1.41-3.04 0-3-1 0 .19 1.23-1 2-1 0-4.003 1-4-4 0-2 6-12 6-12s1.89-1.9 2-3.5c-.73-.994-.5-2-.5-3 1-1 3 2.5 3 2.5h2s.78-1.992 2.5-3c1 0 1 3 1 3" fill="#1a1a1a"/><path d="M9.5 25.5a.5.5 0 11-1 0 .5.5 0 011 0z" fill="#ddd" stroke="none"/><path d="M15 15.5a.5 1.5 0 11-1 0" transform="matrix(.866.5-.5.866 9.693-5.173)" fill="#ddd" stroke="none"/></g></svg>`,
+bB:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 36c3.39-1.03 10.11.43 13.5-2 3.39 2.43 10.11.97 13.5 2 0 0 1.65.54 3 2-.68.97-1.8.99-3 .5-3.39-1.03-10.11.43-13.5-2-3.39 2.43-10.11.97-13.5 2-1.2.49-2.32.47-3-.5C7.35 36.54 9 36 9 36z" fill="#1a1a1a"/><path d="M15 32c2.5 2.5 12.5 2.5 15 0 .5-1.5 0-2 0-2 0-2.5-2.5-4-2.5-4C33 24.5 33.5 14.5 22.5 10.5 11.5 14.5 12 24.5 17.5 26c0 0-2.5 1.5-2.5 4 0 0-.5.5 0 2z" fill="#1a1a1a"/><circle cx="22.5" cy="8" r="2.5" fill="#1a1a1a"/><path d="M17.5 26h10M15 30h15M22.5 15.5v5M20 18h5" stroke="#999" fill="none"/></g></svg>`,
+bQ:`<svg viewBox="0 0 45 45"><g fill="#1a1a1a" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="2.75"/><circle cx="14" cy="9" r="2.75"/><circle cx="22.5" cy="8" r="2.75"/><circle cx="31" cy="9" r="2.75"/><circle cx="39" cy="12" r="2.75"/><path d="M9 26c8.5-1.5 21-1.5 27 0l2.5-13.5L31 25l-.7-14.1-5.2 13.6-2.6-14.5-2.6 14.5-5.2-13.6L14 25 6.5 12.5 9 26z" stroke-linecap="butt"/><path d="M9 26c0 2 1.5 2 2.5 4s2 2 2 3.5c-1 1.5.5 2 .5 2 5.5 2 17.5 2 23 0 0 0 1.5-.5.5-2 0-1.5 1-2 2-3.5S36 28 36 26c-8.5-1.5-18.5-1.5-27 0z"/><path d="M11.5 30c3.5-1 18-1 22 0M12 33.5c3.5-1 17-1 21 0" fill="none"/></g></svg>`,
+bK:`<svg viewBox="0 0 45 45"><g fill="none" stroke="#999" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M22.5 11.63V6M20 8h5" stroke-linejoin="miter"/><path d="M22.5 25c0 0 4.5-7.5 3-10.5 0 0-1-2.5-3-2.5s-3 2.5-3 2.5c-1.5 3 3 10.5 3 10.5" fill="#1a1a1a"/><path d="M12.5 37c5.5 3.5 14.5 3.5 20 0V30s9-4.5 6-10.5c-4-6.5-13.5-3.5-16 1v0c-2.5-4.5-12-7.5-16-1-3 6 5 10.5 5 10.5V37z" fill="#1a1a1a"/><path d="M12.5 30c5.5-3 14.5-3 20 0M12.5 33.5c5.5-3 14.5-3 20 0M12.5 37c5.5-3 14.5-3 20 0" fill="none"/></g></svg>`
+};
+
+// ===== PIECE VALUES & PST =====
+const PV={p:100,n:320,b:330,r:500,q:900,k:20000};
+// Mobility bonus per move
+const MOB_BONUS={n:4,b:4,r:2,q:1,k:0,p:0};
+
+const PST={
+p:[0,0,0,0,0,0,0,0,98,134,61,95,68,126,34,-11,
+   -6,7,26,31,65,56,25,-20,-14,13,6,21,23,12,17,-23,
+   -27,-2,-5,12,17,6,10,-25,-26,-4,-4,-10,3,3,33,-12,
+   -35,-1,-20,-23,-15,24,38,-22,0,0,0,0,0,0,0,0],
+n:[-167,-89,-34,-49,61,-97,-15,-107,-73,-41,72,12,23,35,-22,-44,
+   -47,60,37,65,84,129,73,44,-9,17,19,53,37,69,18,22,
+   -13,4,16,13,28,19,21,-8,-23,0,0,6,10,9,12,-5,
+   -29,-53,-12,-3,-1,18,-14,-19,-105,-21,-58,-33,-17,-28,-19,-23],
+b:[-29,4,-82,-37,-25,-42,7,-8,-26,16,-18,-13,30,59,18,-47,
+   -16,37,43,40,35,50,37,-2,-4,5,19,50,37,37,7,-2,
+   -6,13,13,26,34,12,10,4,0,15,15,15,14,27,18,10,
+   4,15,16,0,7,21,33,1,-33,-3,-14,-21,-13,-12,-39,-21],
+r:[32,42,32,51,63,9,31,43,27,32,58,62,80,67,26,44,
+   -5,19,26,36,17,45,61,16,-24,-11,7,26,24,35,-8,-20,
+   -36,-26,-12,-1,9,-7,6,-23,-45,-25,-16,-17,3,0,-5,-33,
+   -44,-16,-20,0,-9,-31,-23,-28,-45,-25,-16,-17,3,0,-5,-33],
+q:[-28,0,29,12,59,44,43,45,-24,-39,18,31,14,39,23,13,
+   -13,-31,22,28,47,44,34,-17,-29,-4,16,50,50,0,4,-4,
+   -21,17,-4,-26,-10,9,4,-5,-22,20,20,-11,-10,10,19,-17,
+   -11,-1,-1,-22,-22,-11,-23,-44,-50,-20,-35,-45,-44,-40,-20,-25],
+km:[-65,-23,-15,-15,-15,-15,-23,-65,-23,5,5,5,5,5,5,-23,
+    -15,5,11,11,11,11,5,-15,-15,5,11,16,16,11,5,-15,
+    -15,5,11,16,16,11,5,-15,-15,5,11,11,11,11,5,-15,
+    -23,5,5,5,5,5,5,-23,-65,-23,-15,-15,-15,-15,-23,-65],
+ke:[-50,-40,-30,-20,-20,-30,-40,-50,-30,-20,-10,0,0,-10,-20,-30,
+    -30,-10,20,30,30,20,-10,-30,-30,-10,30,40,40,30,-10,-30,
+    -30,-10,30,40,40,30,-10,-30,-30,-10,20,30,30,20,-10,-30,
+    -30,-30,0,0,0,0,-30,-30,-50,-30,-30,-30,-30,-30,-30,-50]
+};
+
+function pstIdx(sq,color){
+  const f=sq.charCodeAt(0)-97,r=parseInt(sq[1])-1;
+  const row=color==='w'?(7-r):r;
+  return row*8+f;
+}
+
+function isEndgame(g){
+  let m=0;const b=g.board();
+  for(const r of b)for(const p of r)if(p&&p.type!=='k'&&p.type!=='p')m+=PV[p.type]||0;
+  return m<1400;
+}
+
+// Pawn structure evaluation
+function evalPawns(board){
+  let sc=0;
+  const wPawns=new Array(8).fill(0);
+  const bPawns=new Array(8).fill(0);
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c];
+    if(p&&p.type==='p'){
+      if(p.color==='w')wPawns[c]++;else bPawns[c]++;
+    }
+  }
+  // Doubled pawns penalty
+  for(let c=0;c<8;c++){
+    if(wPawns[c]>1)sc-=15*(wPawns[c]-1);
+    if(bPawns[c]>1)sc+=15*(bPawns[c]-1);
+  }
+  // Isolated pawns penalty
+  for(let c=0;c<8;c++){
+    const lW=c>0?wPawns[c-1]:0,rW=c<7?wPawns[c+1]:0;
+    const lB=c>0?bPawns[c-1]:0,rB=c<7?bPawns[c+1]:0;
+    if(wPawns[c]>0&&lW===0&&rW===0)sc-=20;
+    if(bPawns[c]>0&&lB===0&&rB===0)sc+=20;
+  }
+  return sc;
+}
+
+// Bishop pair bonus
+function evalBishopPair(board){
+  let wb=0,bb=0;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c];
+    if(p&&p.type==='b'){if(p.color==='w')wb++;else bb++;}
+  }
+  return (wb>=2?30:0)-(bb>=2?30:0);
+}
+
+// Rook on open file bonus
+function evalRooks(board){
+  let sc=0;
+  const wPawns=new Array(8).fill(0);
+  const bPawns=new Array(8).fill(0);
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c];
+    if(p&&p.type==='p'){if(p.color==='w')wPawns[c]++;else bPawns[c]++;}
+  }
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c];
+    if(p&&p.type==='r'){
+      const open=wPawns[c]===0&&bPawns[c]===0;
+      const semiW=wPawns[c]===0&&bPawns[c]>0;
+      const semiB=bPawns[c]===0&&wPawns[c]>0;
+      if(p.color==='w'){if(open)sc+=25;else if(semiW)sc+=15;}
+      else{if(open)sc-=25;else if(semiB)sc-=15;}
+    }
+  }
+  return sc;
+}
+
+function evalPos(g){
+  if(g.in_checkmate())return g.turn()==='w'?-49000:49000;
+  if(g.in_stalemate()||g.in_draw()||g.in_threefold_repetition()||g.insufficient_material())return 0;
+  let sc=0;
+  const eg=isEndgame(g);
+  const board=g.board();
+  // Material + PST
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=board[r][c];if(!p)continue;
+    const sq=String.fromCharCode(97+c)+(8-r);
+    const idx=pstIdx(sq,p.color);
+    const base=PV[p.type]||0;
+    let pos=0;
+    if(p.type==='k')pos=eg?PST.ke[idx]:PST.km[idx];
+    else if(PST[p.type])pos=PST[p.type][idx];
+    sc+=p.color==='w'?(base+pos):-(base+pos);
+  }
+  // Mobility
+  const wMoves=g.moves({verbose:true}).length;
+  const turnBonus=g.turn()==='w'?wMoves*0.15:-(wMoves*0.15);
+  sc+=turnBonus;
+  // Pawn structure
+  sc+=evalPawns(board);
+  // Bishop pair
+  sc+=evalBishopPair(board);
+  // Rooks on open files
+  sc+=evalRooks(board);
+  // Check bonus
+  if(g.in_check())sc+=(g.turn()==='w'?-25:25);
+  return sc;
+}
+
+// Move ordering with history heuristic
+const histTable={};
+function getHistKey(m){return m.color+m.from+m.to;}
+
+function mvvLva(m){
+  // Most Valuable Victim - Least Valuable Attacker
+  if(!m.captured)return 0;
+  return (PV[m.captured]||0)*10-(PV[m.piece]||100);
+}
+
+function sortMovesVerbose(moves){
+  return moves.slice().sort((a,b)=>{
+    let sa=0,sb=0;
+    sa+=mvvLva(a);sb+=mvvLva(b);
+    if(a.flags&&a.flags.includes('p'))sa+=700;
+    if(b.flags&&b.flags.includes('p'))sb+=700;
+    if(a.san&&a.san.includes('+'))sa+=80;
+    if(b.san&&b.san.includes('+'))sb+=80;
+    // History heuristic
+    sa+=(histTable[getHistKey(a)]||0)*0.01;
+    sb+=(histTable[getHistKey(b)]||0)*0.01;
+    return sb-sa;
+  });
+}
+
+// Quiescence search to avoid horizon effect
+function quiesce(g,alpha,beta,depth){
+  if(depth<=0)return evalPos(g);
+  const stand=evalPos(g);
+  if(stand>=beta)return beta;
+  if(stand>alpha)alpha=stand;
+  const caps=g.moves({verbose:true}).filter(m=>m.captured||m.san.includes('+'));
+  const sorted=sortMovesVerbose(caps);
+  for(const m of sorted){
+    g.move(m);
+    const sc=-quiesce(g,-beta,-alpha,depth-1);
+    g.undo();
+    if(sc>=beta)return beta;
+    if(sc>alpha)alpha=sc;
+  }
+  return alpha;
+}
+
+let abortAI=false;
+// Principal Variation Search (PVS) - stronger than pure alpha-beta
+function pvs(g,depth,alpha,beta,maxi){
+  if(abortAI)return 0;
+  if(g.game_over()){
+    if(g.in_checkmate())return maxi?-48000+depth*100:48000-depth*100;
+    return 0;
+  }
+  if(depth===0)return quiesce(g,alpha,beta,4);
+  
+  const moves=sortMovesVerbose(g.moves({verbose:true}));
+  let first=true;
+  let best=maxi?-Infinity:Infinity;
+  
+  for(const m of moves){
+    g.move(m);
+    let sc;
+    if(first){
+      sc=pvs(g,depth-1,alpha,beta,!maxi);
+      first=false;
+    }else{
+      // Null window search
+      if(maxi){
+        sc=pvs(g,depth-1,alpha,alpha+1,!maxi);
+        if(sc>alpha&&sc<beta)sc=pvs(g,depth-1,alpha,beta,!maxi);
+      }else{
+        sc=pvs(g,depth-1,beta-1,beta,!maxi);
+        if(sc>alpha&&sc<beta)sc=pvs(g,depth-1,alpha,beta,!maxi);
+      }
+    }
+    g.undo();
+    
+    if(maxi){
+      if(sc>best)best=sc;
+      if(sc>alpha){alpha=sc;histTable[getHistKey(m)]=(histTable[getHistKey(m)]||0)+depth*depth;}
+      if(beta<=alpha)break;
+    }else{
+      if(sc<best)best=sc;
+      if(sc<beta){beta=sc;histTable[getHistKey(m)]=(histTable[getHistKey(m)]||0)+depth*depth;}
+      if(beta<=alpha)break;
+    }
+  }
+  return best;
+}
+
+// Iterative deepening with time limit
+function findBestIterative(g,maxDepth,timeLimitMs){
+  abortAI=false;
+  const moves=sortMovesVerbose(g.moves({verbose:true}));
+  if(!moves.length)return null;
+  const maxi=g.turn()==='w';
+  let bestMove=moves[0];
+  const start=Date.now();
+  
+  for(let depth=1;depth<=maxDepth;depth++){
+    if(abortAI)break;
+    let best=maxi?-Infinity:Infinity;
+    let curBest=moves[0];
+    
+    for(const m of moves){
+      if(abortAI)break;
+      g.move(m);
+      const sc=pvs(g,depth-1,-Infinity,Infinity,!maxi);
+      g.undo();
+      if((maxi&&sc>best)||(!maxi&&sc<best)){best=sc;curBest=m;}
+    }
+    if(!abortAI)bestMove=curBest;
+    if(Date.now()-start>timeLimitMs)break;
+  }
+  return bestMove;
+}
+
+function depthFor(d){
+  // Much stronger depths: 1-3 → depth 2, 4-7 → 3, 8-11 → 4, 12-15 → 5, 16-18 → 6, 19-20 → 7
+  if(d<=3)return 2;if(d<=7)return 3;if(d<=11)return 4;if(d<=15)return 5;if(d<=18)return 6;return 7;
+}
+function timeLimitFor(d){
+  if(d<=3)return 300;if(d<=7)return 600;if(d<=11)return 1200;if(d<=15)return 2500;if(d<=18)return 4000;return 6000;
+}
+
+// ===== PREMOVE SYSTEM =====
+// premoves: array of {from, to, promo}
+let premoves=[];
+
+function addPremove(from,to,promo){
+  if(!S.premoves)return;
+  premoves.push({from,to,promo:promo||null});
+  updatePremoveUI();
+  showNotif('Oldindan yurish qo\'shildi: '+from+'→'+to,'pre');
+}
+
+function clearPremoves(){
+  premoves=[];
+  selSq=null;legalSqs=[];
+  renderBoard();
+  updatePremoveUI();
+}
+
+function updatePremoveUI(){
+  const card=document.getElementById('premoveCard');
+  const list=document.getElementById('premoveList');
+  if(!premoves.length){card.style.display='none';return;}
+  card.style.display='block';
+  list.innerHTML='';
+  premoves.forEach((pm,i)=>{
+    const div=document.createElement('div');div.className='premove-item';
+    div.innerHTML=`<span class="premove-badge">${i+1}</span><span>${pm.from} → ${pm.to}${pm.promo?(' ='+pm.promo.toUpperCase()):''}</span>`;
+    list.appendChild(div);
+  });
+}
+
+// Execute queued premoves after opponent moves
+function executePremoves(){
+  if(!premoves.length)return;
+  // Try each premove in order
+  while(premoves.length){
+    const pm=premoves[0];
+    // Check if the move is still valid
+    const mvs=chess.moves({square:pm.from,verbose:true}).filter(m=>m.to===pm.to);
+    if(!mvs.length){
+      // Invalid premove (e.g. king is in check) — cancel all
+      showNotif('Oldindan yurish bekor qilindi (shoh!)', 'err');
+      premoves=[];
+      updatePremoveUI();
+      renderBoard();
+      return;
+    }
+    // Valid — execute it
+    premoves.shift();
+    const result=chess.move({from:pm.from,to:pm.to,promotion:pm.promo||'q'});
+    if(!result){
+      premoves=[];updatePremoveUI();renderBoard();return;
+    }
+    fullHist=chess.history({verbose:true});viewIdx=-1;
+    lastFrom=pm.from;lastTo=pm.to;
+    if(tMode!=='none'&&tInc>0){
+      if(result.color==='w')tW=Math.min(tW+tInc,3600);
+      else tB=Math.min(tB+tInc,3600);
+    }
+    if(mode==='remote'&&conn&&conn.open)conn.send(JSON.stringify({type:'move',from:pm.from,to:pm.to,promo:pm.promo||null}));
+    saveState();
+    renderBoard();renderHist();updateStatus();updateCaps();updateTimerUI();updateBtns();
+    updatePremoveUI();
+    if(gameOver()){stopTimer();showGO();return;}
+    // If still our turn (local mode), continue executing
+    if(mode==='local')continue;
+    // In AI mode: we just moved, trigger AI
+    if(mode==='ai'&&chess.turn()!==myColor){
+      scheduleAI();
+    }
+    break;
+  }
+}
+
+// ===== STATE =====
+let chess=null,mode='ai',myColor='w',flipped=false;
+let selSq=null,legalSqs=[],lastFrom=null,lastTo=null;
+let hintFrom=null,hintTo=null,viewIdx=-1,fullHist=[];
+let pendingPromo=null,aiThinking=false;
+let tW=0,tB=0,tInc=0,tMode='none',tInterval=null;
+let S={diff:10,aiColor:'w',tc:'none',theme:'brown',arrows:true,premoves:true};
+let saves={ai:null,local:null,remote:null};
+let peer=null,conn=null;
+let SQ=60;
+// For premove input: selecting source when it's opponent's turn
+let premoveSel=null,premoveLegal=[];
+
+// ===== SIZING =====
+function calcSQ(){
+  const avail=Math.min(window.innerWidth-560,window.innerHeight-190);
+  SQ=Math.max(44,Math.min(76,Math.floor(avail/8)));
+  document.getElementById('evalBar').style.height=(SQ*8)+'px';
+}
+
+// ===== INIT =====
+function initGame(saved){
+  chess=new Chess();
+  fullHist=[];viewIdx=-1;selSq=null;legalSqs=[];
+  lastFrom=lastTo=null;hintFrom=hintTo=null;
+  premoves=[];premoveSel=null;premoveLegal=[];
+  abortAI=true;aiThinking=false;
+  stopTimer();clearCanvas();
+  if(saved&&saved.moves&&saved.moves.length){
+    for(const mv of saved.moves){if(!chess.move(mv))break;}
+    fullHist=chess.history({verbose:true});
+    if(saved.tW!==undefined){tW=saved.tW;tB=saved.tB;tInc=saved.tInc;tMode=saved.tMode||'none';}
+    else setupTimer();
+  }else{setupTimer();}
+  renderBoard();renderCoords();renderHist();
+  updateStatus();updateCaps();updateTimerUI();updateBtns();updateNames();updatePremoveUI();
+  if(!gameOver()){
+    startTimer();
+    if(mode==='ai'&&chess.turn()!==myColor){
+      setTimeout(()=>{abortAI=false;scheduleAI();},200);
+    }else{abortAI=false;}
+  }else{showGO();}
+}
+
+function newGame(){
+  closeGO();saves[mode]=null;
+  try{localStorage.removeItem('cp_'+mode);}catch(e){}
+  abortAI=true;aiThinking=false;
+  premoves=[];premoveSel=null;premoveLegal=[];
+  setTimeout(()=>initGame(null),60);
+}
+
+function gameOver(){return chess&&chess.game_over();}
+
+// ===== RENDER =====
+function renderCoords(){
+  const rc=document.getElementById('rankCol');
+  const fr=document.getElementById('fileRow');
+  rc.innerHTML='';fr.innerHTML='';
+  rc.style.height=(SQ*8)+'px';
+  const ranks=flipped?['1','2','3','4','5','6','7','8']:['8','7','6','5','4','3','2','1'];
+  const files=flipped?['h','g','f','e','d','c','b','a']:['a','b','c','d','e','f','g','h'];
+  ranks.forEach(r=>{
+    const d=document.createElement('div');
+    d.className='rank-lbl';d.textContent=r;d.style.height=SQ+'px';
+    rc.appendChild(d);
+  });
+  files.forEach(f=>{
+    const d=document.createElement('div');
+    d.className='file-lbl';d.textContent=f;d.style.width=SQ+'px';
+    fr.appendChild(d);
+  });
+  const cvs=document.getElementById('hint-cvs');
+  cvs.width=SQ*8;cvs.height=SQ*8;
+}
+
+function renderBoard(){
+  const bd=document.getElementById('board');
+  bd.style.width=(SQ*8)+'px';bd.style.height=(SQ*8)+'px';
+  bd.innerHTML='';
+  let g=chess;
+  if(viewIdx>=0){
+    g=new Chess();
+    for(let i=0;i<=viewIdx&&i<fullHist.length;i++)g.move(fullHist[i].san);
+  }
+  const rows=flipped?['1','2','3','4','5','6','7','8']:['8','7','6','5','4','3','2','1'];
+  const cols=flipped?['h','g','f','e','d','c','b','a']:['a','b','c','d','e','f','g','h'];
+  let checkSq=null;
+  if(g.in_check()){
+    const b2=g.board();const t=g.turn();
+    outer:for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+      const p=b2[r][c];if(p&&p.type==='k'&&p.color===t){checkSq=String.fromCharCode(97+c)+(8-r);break outer;}
+    }
+  }
+  // Build premove highlight sets
+  const pmFroms=new Set(premoves.map(p=>p.from));
+  const pmTos=new Set(premoves.map(p=>p.to));
+  
+  rows.forEach((rank,ri)=>{
+    cols.forEach((file,ci)=>{
+      const sqName=file+rank;
+      const isLight=(file.charCodeAt(0)-97+parseInt(rank))%2===0;
+      const el=document.createElement('div');
+      el.className='sq '+(isLight?'light':'dark');
+      el.style.cssText='left:'+(ci*SQ)+'px;top:'+(ri*SQ)+'px;width:'+SQ+'px;height:'+SQ+'px';
+      if(sqName===lastFrom||sqName===lastTo)el.classList.add(isLight?'lmh':'lmd');
+      if(selSq===sqName||premoveSel===sqName)el.classList.add('sel');
+      if(sqName===checkSq)el.classList.add('check-sq');
+      if(pmFroms.has(sqName))el.classList.add('premove-from');
+      if(pmTos.has(sqName))el.classList.add('premove-to');
+      if(legalSqs.includes(sqName)){
+        const dot=document.createElement('div');
+        dot.className='mdot '+(g.get(sqName)?'cap':'empty');
+        el.appendChild(dot);
+      }
+      // Premove legal dots
+      if(premoveLegal.includes(sqName)){
+        const dot=document.createElement('div');
+        dot.className='mdot '+(g.get(sqName)?'cap':'empty');
+        dot.style.background='rgba(140,80,255,.35)';
+        if(g.get(sqName))dot.style.boxShadow='inset 0 0 0 4px rgba(140,80,255,.45)';
+        el.appendChild(dot);
+      }
+      const pc=g.get(sqName);
+      if(pc){
+        const div=document.createElement('div');
+        div.className='piece';
+        div.style.cssText='width:'+SQ+'px;height:'+SQ+'px;top:0;left:0';
+        div.innerHTML=SVG[pc.color+pc.type.toUpperCase()]||'';
+        div.draggable=true;div.dataset.sq=sqName;
+        div.addEventListener('dragstart',onDragStart);
+        div.addEventListener('dragend',onDragEnd);
+        el.appendChild(div);
+      }
+      el.addEventListener('click',()=>handleClick(sqName));
+      el.addEventListener('dragover',e=>e.preventDefault());
+      el.addEventListener('drop',()=>handleDrop(sqName));
+      bd.appendChild(el);
+    });
+  });
+  drawArrow();updateEval(g);
+}
+
+// ===== CLICK/MOVE =====
+function isMyTurn(){
+  if(mode==='ai')return chess.turn()===myColor&&!aiThinking;
+  if(mode==='local')return!aiThinking;
+  if(mode==='remote')return chess.turn()===myColor&&conn&&conn.open;
+  return false;
+}
+function canMove(){return!gameOver()&&viewIdx<0&&isMyTurn();}
+
+// Can we queue a premove? (opponent's turn in AI or remote mode)
+function canPremove(){
+  if(!S.premoves)return false;
+  if(gameOver()||viewIdx>=0)return false;
+  if(mode==='ai')return chess.turn()!==myColor&&!gameOver();
+  if(mode==='remote')return chess.turn()!==myColor&&conn&&conn.open;
+  return false;
+}
+
+function handleClick(sq){
+  if(viewIdx>=0){jumpLive();return;}
+  if(canMove()){
+    const pc=chess.get(sq);
+    if(selSq){
+      if(legalSqs.includes(sq)){doMove(selSq,sq);}
+      else if(pc&&pc.color===chess.turn()&&(mode==='local'||pc.color===myColor)){selectSq(sq);}
+      else deselect();
+    }else{
+      if(pc&&pc.color===chess.turn()&&(mode==='local'||pc.color===myColor))selectSq(sq);
+    }
+  } else if(canPremove()){
+    // Premove logic
+    const pc=chess.get(sq);
+    if(premoveSel){
+      if(premoveLegal.includes(sq)){
+        // Queue premove
+        const promo=needsPromoForPremove(premoveSel,sq)?null:null;
+        addPremove(premoveSel,sq,promo);
+        // Stay selected for chaining premoves
+        // re-select from destination for next premove
+        premoveSel=sq;
+        premoveLegal=getPremoveLegal(sq);
+        renderBoard();
+      }else if(pc&&pc.color===myColor){
+        premoveSel=sq;
+        premoveLegal=getPremoveLegal(sq);
+        renderBoard();
+      }else{
+        premoveSel=null;premoveLegal=[];renderBoard();
+      }
+    }else{
+      if(pc&&pc.color===myColor){
+        premoveSel=sq;
+        premoveLegal=getPremoveLegal(sq);
+        renderBoard();
+      }
+    }
+  }
+}
+
+function needsPromoForPremove(from,to){
+  const pc=chess.get(from);
+  if(!pc||pc.type!=='p')return false;
+  const toRank=parseInt(to[1]);
+  return(pc.color==='w'&&toRank===8)||(pc.color==='b'&&toRank===1);
+}
+
+// Get squares a piece could potentially move to (ignoring check rules for premove display)
+function getPremoveLegal(sq){
+  const pc=chess.get(sq);if(!pc)return[];
+  // Use a temporary game to get legal destinations
+  // For premoves, we show "pseudo-legal" moves (piece movement patterns)
+  const g=new Chess(chess.fen());
+  // Just return what chess.js gives even if it's opponent turn
+  // We'll simulate as if it were our turn
+  const swapped=g.fen().replace(/ [wb] /,(m)=>m.trim()==='w'?' b ':' w ');
+  try{
+    const g2=new Chess(swapped);
+    return g2.moves({square:sq,verbose:true}).map(m=>m.to);
+  }catch(e){return[];}
+}
+
+function selectSq(sq){
+  selSq=sq;legalSqs=chess.moves({square:sq,verbose:true}).map(m=>m.to);
+  renderBoard();
+}
+
+function deselect(){selSq=null;legalSqs=[];premoveSel=null;premoveLegal=[];renderBoard();}
+
+function doMove(from,to,promo){
+  if(!promo){
+    const mvs=chess.moves({square:from,verbose:true}).filter(m=>m.to===to);
+    if(mvs.length&&mvs[0].flags&&mvs[0].flags.includes('p')){
+      pendingPromo={from,to};showPromo();return;
+    }
+  }
+  selSq=null;legalSqs=[];clearArrow();
+  const result=chess.move({from,to,promotion:promo||'q'});
+  if(!result){deselect();return;}
+  fullHist=chess.history({verbose:true});viewIdx=-1;
+  lastFrom=from;lastTo=to;
+  if(tMode!=='none'&&tInc>0){
+    if(result.color==='w')tW=Math.min(tW+tInc,3600);
+    else tB=Math.min(tB+tInc,3600);
+  }
+  if(mode==='remote'&&conn&&conn.open)conn.send(JSON.stringify({type:'move',from,to,promo:promo||null}));
+  saveState();
+  renderBoard();renderHist();updateStatus();updateCaps();updateTimerUI();updateBtns();
+  if(gameOver()){stopTimer();showGO();return;}
+  if(mode==='ai'&&chess.turn()!==myColor){
+    scheduleAI();
+  }
+}
+
+// ===== DRAG =====
+let dragFrom=null;
+function onDragStart(e){
+  const sq=e.target.closest('[data-sq]')?.dataset.sq;if(!sq){e.preventDefault();return;}
+  const pc=chess.get(sq);if(!pc){e.preventDefault();return;}
+  
+  if(canMove()){
+    if((mode==='ai'||mode==='remote')&&pc.color!==myColor){
+      // Can we premove?
+      if(canPremove()&&pc.color===myColor){
+        dragFrom=sq;premoveSel=sq;premoveLegal=getPremoveLegal(sq);
+      }else{e.preventDefault();return;}
+    }else{
+      dragFrom=sq;selectSq(sq);
+    }
+  }else if(canPremove()&&pc.color===myColor){
+    dragFrom=sq;premoveSel=sq;premoveLegal=getPremoveLegal(sq);renderBoard();
+  }else{e.preventDefault();return;}
+  
+  const g=document.getElementById('ghost');
+  g.innerHTML=SVG[pc.color+pc.type.toUpperCase()]||'';
+  g.style.width=SQ+'px';g.style.height=SQ+'px';g.style.display='block';
+  e.dataTransfer.setDragImage(new Image(),0,0);
+}
+function onDragEnd(){document.getElementById('ghost').style.display='none';dragFrom=null;}
+document.addEventListener('dragover',e=>{
+  const g=document.getElementById('ghost');
+  if(g.style.display!=='none'){g.style.left=e.clientX+'px';g.style.top=e.clientY+'px';}
+});
+function handleDrop(sq){
+  if(!dragFrom||dragFrom===sq){deselect();return;}
+  if(canMove()&&legalSqs.includes(sq)){doMove(dragFrom,sq);}
+  else if(canPremove()&&premoveLegal.includes(sq)){addPremove(dragFrom,sq,null);premoveSel=null;premoveLegal=[];renderBoard();}
+  else deselect();
+  dragFrom=null;
+}
+
+// ===== PROMOTION =====
+function showPromo(){
+  const grid=document.getElementById('promoGrid');grid.innerHTML='';
+  const color=chess.turn();
+  ['q','r','b','n'].forEach(p=>{
+    const cell=document.createElement('div');cell.className='promo-c';
+    cell.innerHTML=SVG[color+p.toUpperCase()]||'';
+    cell.onclick=()=>{
+      closeModal('promoModal');
+      if(pendingPromo){doMove(pendingPromo.from,pendingPromo.to,p);pendingPromo=null;}
+    };
+    grid.appendChild(cell);
+  });
+  openModal('promoModal');
+}
+
+// ===== AI =====
+function scheduleAI(){
+  if(aiThinking||mode!=='ai'||gameOver())return;
+  aiThinking=true;abortAI=false;
+  document.getElementById('aidot').className='dot thinking';
+  document.getElementById('aitxt').textContent='AI o\'ylayapti...';
+  updateBtns();
+  const fen=chess.fen();
+  const depth=depthFor(S.diff);
+  const timeLimit=timeLimitFor(S.diff);
+  
+  setTimeout(()=>{
+    const g=new Chess(fen);
+    const best=findBestIterative(g,depth,timeLimit);
+    aiThinking=false;
+    document.getElementById('aidot').className='dot ready';
+    document.getElementById('aitxt').textContent='AI tayyor';
+    if(best&&!gameOver()&&chess.turn()!==myColor){
+      doMove(best.from,best.to,best.promotion||null);
+      // After AI moves, try to execute premoves
+      setTimeout(()=>{
+        if(premoves.length&&chess.turn()===myColor)executePremoves();
+      },50);
+    }
+    updateBtns();
+  },30);
+}
+
+// ===== HINT =====
+function getHint(){
+  if(gameOver()||aiThinking)return;
+  document.getElementById('hintArea').innerHTML='<span class="hint-thinking">⏳ Analizlanmoqda...</span>';
+  document.getElementById('aidot').className='dot thinking';
+  document.getElementById('aitxt').textContent='Tahlil qilinmoqda...';
+  aiThinking=true;updateBtns();
+  const fen=chess.fen();
+  const depth=Math.min(7,depthFor(S.diff)+1);
+  const timeLimit=timeLimitFor(S.diff)*1.5;
+  setTimeout(()=>{
+    const g=new Chess(fen);const best=findBestIterative(g,depth,timeLimit);
+    aiThinking=false;
+    document.getElementById('aidot').className='dot ready';
+    document.getElementById('aitxt').textContent='AI tayyor';
+    if(best){
+      const tmp=new Chess(fen);const mv=tmp.move(best);
+      const san=mv?mv.san:best.from+best.to;
+      hintFrom=best.from;hintTo=best.to;drawArrow();
+      const sc=evalPos(tmp)/100;
+      const eval_str=sc>=0?'+'+sc.toFixed(1):sc.toFixed(1);
+      document.getElementById('hintArea').innerHTML=
+        `<div style="display:flex;align-items:center;gap:8px"><span class="hint-move">${san}</span><span class="hint-sub">${best.from}→${best.to}</span><span style="color:var(--acc2);font-size:.78em;font-family:var(--fm)">${eval_str}</span></div>`;
+    }else{
+      document.getElementById('hintArea').innerHTML='<span class="hint-thinking">Maslahat topilmadi</span>';
+    }
+    updateBtns();
+  },30);
+}
+
+// ===== ARROW =====
+function sq2xy(sq){
+  const f=sq.charCodeAt(0)-97,r=parseInt(sq[1])-1;
+  const col=flipped?7-f:f,row=flipped?r:7-r;
+  return{x:col*SQ+SQ/2,y:row*SQ+SQ/2};
+}
+function drawArrow(){
+  const cvs=document.getElementById('hint-cvs');
+  if(!cvs)return;
+  const ctx=cvs.getContext('2d');ctx.clearRect(0,0,cvs.width,cvs.height);
+  if(!hintFrom||!hintTo||!S.arrows)return;
+  const A=sq2xy(hintFrom),B=sq2xy(hintTo);
+  const dx=B.x-A.x,dy=B.y-A.y,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<1)return;
+  const ux=dx/len,uy=dy/len,hw=SQ*0.36,lw=SQ*0.115;
+  ctx.save();ctx.globalAlpha=0.78;ctx.strokeStyle='#f6a623';ctx.fillStyle='#f6a623';
+  ctx.lineWidth=lw;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x-ux*hw*0.5,B.y-uy*hw*0.5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(B.x,B.y);
+  ctx.lineTo(B.x-ux*hw-uy*hw*0.42,B.y-uy*hw+ux*hw*0.42);
+  ctx.lineTo(B.x-ux*hw+uy*hw*0.42,B.y-uy*hw-ux*hw*0.42);
+  ctx.closePath();ctx.fill();ctx.restore();
+  
+  // Draw premove arrows too
+  if(premoves.length){
+    const colors=['#a070ff','#8050ee','#6030cc'];
+    premoves.forEach((pm,i)=>{
+      const pA=sq2xy(pm.from),pB=sq2xy(pm.to);
+      const pdx=pB.x-pA.x,pdy=pB.y-pA.y,plen=Math.sqrt(pdx*pdx+pdy*pdy);
+      if(plen<1)return;
+      const pux=pdx/plen,puy=pdy/plen;
+      const color=colors[Math.min(i,colors.length-1)];
+      ctx.save();ctx.globalAlpha=0.6;ctx.strokeStyle=color;ctx.fillStyle=color;
+      ctx.lineWidth=lw*0.8;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(pA.x,pA.y);ctx.lineTo(pB.x-pux*hw*0.5,pB.y-puy*hw*0.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(pB.x,pB.y);
+      ctx.lineTo(pB.x-pux*hw*0.85-puy*hw*0.38,pB.y-puy*hw*0.85+pux*hw*0.38);
+      ctx.lineTo(pB.x-pux*hw*0.85+puy*hw*0.38,pB.y-puy*hw*0.85-pux*hw*0.38);
+      ctx.closePath();ctx.fill();ctx.restore();
+    });
+  }
+}
+function clearArrow(){hintFrom=hintTo=null;clearCanvas();}
+function clearCanvas(){
+  const cvs=document.getElementById('hint-cvs');
+  if(cvs){const ctx=cvs.getContext('2d');ctx.clearRect(0,0,cvs.width,cvs.height);}
+}
+
+// ===== EVAL BAR =====
+function updateEval(g){
+  if(!g)return;
+  const raw=evalPos(g)/100;
+  const clamped=Math.max(-8,Math.min(8,raw));
+  const pct=50+clamped*5;
+  const fill=document.getElementById('evalFill');
+  fill.style.height=(flipped?(100-pct):pct)+'%';
+  const disp=Math.abs(raw)>=90?(raw>0?'+M':'-M'):(raw>=0?'+':'')+raw.toFixed(1);
+  document.getElementById('evalTop').textContent=raw<0?disp:'';
+  document.getElementById('evalBot').textContent=raw>=0?disp:'';
+}
+
+// ===== UNDO/REDO =====
+function undoMove(){
+  if(viewIdx>=0){viewIdx=Math.max(-1,viewIdx-1);renderBoard();renderHist();return;}
+  if(!chess.history().length)return;
+  abortAI=true;aiThinking=false;premoves=[];updatePremoveUI();
+  const cnt=mode==='ai'?2:1;
+  for(let i=0;i<cnt;i++)chess.undo();
+  fullHist=chess.history({verbose:true});
+  const last=fullHist[fullHist.length-1];
+  lastFrom=last?last.from:null;lastTo=last?last.to:null;
+  clearArrow();saveState();
+  renderBoard();renderHist();updateStatus();updateCaps();updateBtns();
+  document.getElementById('hintArea').innerHTML='<span class="hint-thinking">Tugmani bosing</span>';
+}
+function redoMove(){
+  if(viewIdx<0)return;viewIdx++;
+  if(viewIdx>=fullHist.length)viewIdx=-1;
+  renderBoard();renderHist();
+}
+function jumpLive(){viewIdx=-1;renderBoard();renderHist();}
+
+// ===== HISTORY =====
+function renderHist(){
+  const hist=document.getElementById('histBody');
+  const moves=chess.history();hist.innerHTML='';
+  if(!moves.length){hist.innerHTML='<div style="color:var(--text2);font-size:.8em;text-align:center;padding:8px">Hali yurishlar yo\'q</div>';return;}
+  for(let i=0;i<moves.length;i+=2){
+    const row=document.createElement('div');row.className='move-row';
+    const num=document.createElement('span');num.className='move-n';num.textContent=(i/2+1)+'.';row.appendChild(num);
+    [0,1].forEach(j=>{
+      if(i+j>=moves.length)return;
+      const idx=i+j;
+      const isCur=viewIdx===idx||(viewIdx===-1&&idx===moves.length-1);
+      const btn=document.createElement('button');
+      btn.className='move-btn'+(isCur?' cur':'');btn.textContent=moves[idx];
+      btn.onclick=()=>{viewIdx=idx===moves.length-1?-1:idx;renderBoard();renderHist();};
+      row.appendChild(btn);
+    });
+    hist.appendChild(row);
+  }
+  hist.scrollTop=hist.scrollHeight;
+}
+
+// ===== CAPTURED =====
+const capU={w:{p:'♙',n:'♘',b:'♗',r:'♖',q:'♕'},b:{p:'♟',n:'♞',b:'♝',r:'♜',q:'♛'}};
+function updateCaps(){
+  const hist=chess.history({verbose:true});
+  const capByW=[],capByB=[];let sw=0,sb=0;
+  hist.forEach(m=>{
+    if(m.captured){
+      if(m.color==='w'){capByW.push(m.captured);sw+=PV[m.captured]||0;}
+      else{capByB.push(m.captured);sb+=PV[m.captured]||0;}
+    }
+  });
+  const fmt=(arr,color)=>arr.sort().map(p=>'<span class="cap-p">'+(capU[color][p]||'')+'</span>').join('');
+  const tCaps=flipped?fmt(capByB,'w'):fmt(capByW,'b');
+  const bCaps=flipped?fmt(capByW,'b'):fmt(capByB,'w');
+  const tAdv=flipped?(sb>sw?'<span class="score-adv">+'+(Math.round((sb-sw)/100))+'</span>':''):(sw>sb?'<span class="score-adv">+'+(Math.round((sw-sb)/100))+'</span>':'');
+  const bAdv=flipped?(sw>sb?'<span class="score-adv">+'+(Math.round((sw-sb)/100))+'</span>':''):(sb>sw?'<span class="score-adv">+'+(Math.round((sb-sw)/100))+'</span>':'');
+  document.getElementById('capsTop').innerHTML=tCaps+tAdv;
+  document.getElementById('capsBot').innerHTML=bCaps+bAdv;
+}
+
+// ===== STATUS =====
+function updateStatus(){
+  const sb=document.getElementById('statusBar');sb.className='status-bar';
+  if(chess.in_checkmate()){sb.textContent=(chess.turn()==='w'?'♛ Qora':'♙ Oq')+' g\'alaba qildi!';sb.classList.add('good');}
+  else if(chess.in_stalemate()){sb.textContent='🤝 Durrang — Pat holat';}
+  else if(chess.in_threefold_repetition()){sb.textContent='🤝 Durrang — 3x takrorlash';}
+  else if(chess.insufficient_material()){sb.textContent='🤝 Durrang — Material yetarli emas';}
+  else if(chess.in_draw()){sb.textContent='🤝 Durrang — 50 yurish qoidasi';}
+  else if(chess.in_check()){sb.textContent='⚠️ '+(chess.turn()==='w'?'Oq':'Qora')+' shoh ostida!';sb.classList.add('check-s');
+    // If check and premoves queued — warn
+    if(premoves.length&&chess.turn()===myColor){sb.textContent='⚠️ Shoh! Oldindan yurishlar bekor bo\'lishi mumkin';sb.classList.add('check-s');}
+  }
+  else if(premoves.length){sb.textContent='⏭ '+premoves.length+' oldindan yurish navbatda...';sb.classList.add('premove-s');}
+  else{sb.textContent=(chess.turn()==='w'?'♙ Oq':'♟ Qora')+'ning navbati';sb.classList.add('inf');}
+}
+function updateBtns(){
+  const over=gameOver();
+  document.getElementById('btnDraw').disabled=over||aiThinking;
+  document.getElementById('btnResign').disabled=over;
+  document.getElementById('btnHint').disabled=over||aiThinking;
+  document.getElementById('btnUndo').disabled=chess.history().length===0&&viewIdx<0;
+  document.getElementById('btnRedo').disabled=viewIdx<0;
+}
+function updateNames(){
+  let wN,bN;
+  if(mode==='ai'){wN=myColor==='w'?'👤 Sen (Oq)':'🤖 AI (Oq)';bN=myColor==='b'?'👤 Sen (Qora)':'🤖 AI (Qora)';}
+  else if(mode==='remote'){wN=myColor==='w'?'👤 Sen (Oq)':'🌐 Raqib (Oq)';bN=myColor==='b'?'👤 Sen (Qora)':'🌐 Raqib (Qora)';}
+  else{wN='♙ 1-o\'yinchi';bN='♟ 2-o\'yinchi';}
+  if(flipped){document.getElementById('nameTop').textContent=wN;document.getElementById('nameBot').textContent=bN;}
+  else{document.getElementById('nameTop').textContent=bN;document.getElementById('nameBot').textContent=wN;}
+}
+
+// ===== FLIP =====
+function flipBoard(){flipped=!flipped;renderBoard();renderCoords();updateCaps();updateNames();}
+
+// ===== TIMER =====
+function setupTimer(){
+  tMode=S.tc;if(tMode==='none'){tW=tB=0;tInc=0;return;}
+  const[m,inc]=tMode.split('+').map(Number);tW=tB=m*60;tInc=inc||0;
+}
+function startTimer(){
+  if(tMode==='none')return;stopTimer();
+  tInterval=setInterval(()=>{
+    if(gameOver()){stopTimer();return;}
+    if(chess.turn()==='w'){tW=Math.max(0,tW-1);if(!tW){stopTimer();timeOut('w');}}
+    else{tB=Math.max(0,tB-1);if(!tB){stopTimer();timeOut('b');}}
+    updateTimerUI();
+  },1000);
+}
+function stopTimer(){if(tInterval){clearInterval(tInterval);tInterval=null;}}
+function timeOut(c){showGOMsg((c==='w'?'♛ Qora':'♙ Oq')+' g\'alaba qildi!','Vaqt tugadi (Flag)');}
+function fmt(s){if(s<=0)return'0:00';return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function updateTimerUI(){
+  const wEl=flipped?document.getElementById('timerTop'):document.getElementById('timerBot');
+  const bEl=flipped?document.getElementById('timerBot'):document.getElementById('timerTop');
+  if(tMode==='none'){wEl.textContent=bEl.textContent='∞';wEl.className=bEl.className='timer';return;}
+  wEl.textContent=fmt(tW);bEl.textContent=fmt(tB);
+  wEl.className='timer'+(chess.turn()==='w'?' active':'')+(tW<=30&&chess.turn()==='w'?' low':'');
+  bEl.className='timer'+(chess.turn()==='b'?' active':'')+(tB<=30&&chess.turn()==='b'?' low':'');
+}
+
+// ===== GAME OVER =====
+function showGO(){
+  stopTimer();let t='',r='';
+  if(chess.in_checkmate()){t=(chess.turn()==='w'?'♛ QORA':'♙ OQ')+' G\'ALABA QILDI!';r='Shoh mat';}
+  else if(chess.in_stalemate()){t='🤝 DURRANG';r='Pat holat';}
+  else if(chess.in_threefold_repetition()){t='🤝 DURRANG';r='Uch marta takrorlash';}
+  else if(chess.insufficient_material()){t='🤝 DURRANG';r='Material yetarli emas';}
+  else if(chess.in_draw()){t='🤝 DURRANG';r='50 yurish qoidasi';}
+  showGOMsg(t,r);
+}
+function showGOMsg(t,r){
+  stopTimer();document.getElementById('goTitle').textContent=t;
+  document.getElementById('goReason').textContent=r;
+  document.getElementById('goBanner').classList.add('show');
+}
+function closeGO(){document.getElementById('goBanner').classList.remove('show');}
+
+// ===== RESIGN/DRAW =====
+function resignGame(){
+  if(gameOver())return;if(!confirm('Taslim bo\'lishni tasdiqlaysizmi?'))return;
+  const loser=mode==='ai'?myColor:chess.turn();
+  const winner=loser==='w'?'QORA':'OQ';
+  if(mode==='remote'&&conn)conn.send(JSON.stringify({type:'resign'}));
+  showGOMsg(winner+' G\'ALABA QILDI!','Taslim bo\'lish');
+}
+function offerDraw(){
+  if(gameOver())return;
+  if(mode==='ai'){const sc=Math.abs(evalPos(chess)/100);if(sc>1.5){showNotif('AI durrangni rad etdi','err');return;}showGOMsg('🤝 DURRANG','Kelishuv bo\'yicha');return;}
+  if(mode==='remote'&&conn){conn.send(JSON.stringify({type:'drawOffer'}));showNotif('Durrang taklifi yuborildi','inf');return;}
+  document.getElementById('drawTxt').textContent='Ikkinchi o\'yinchi durrangni qabul qilsinmi?';
+  openModal('drawModal');
+}
+function acceptDraw(){closeModal('drawModal');if(mode==='remote'&&conn)conn.send(JSON.stringify({type:'drawAccept'}));showGOMsg('🤝 DURRANG','Kelishuv bo\'yicha');}
+function declineDraw(){closeModal('drawModal');if(mode==='remote'&&conn)conn.send(JSON.stringify({type:'drawDecline'}));}
+
+// ===== REMOTE =====
+function remOpt(opt){
+  document.getElementById('optCreate').classList.toggle('sel',opt==='create');
+  document.getElementById('optJoin').classList.toggle('sel',opt==='join');
+  document.getElementById('createSec').style.display=opt==='create'?'flex':'none';
+  document.getElementById('joinSec').style.display=opt==='join'?'flex':'none';
+  document.getElementById('roomSec').style.display='none';
+}
+function createRoom(){
+  if(typeof Peer==='undefined'){showNotif('PeerJS yuklanmadi','err');return;}
+  const code=String(Math.floor(1000+Math.random()*9000));
+  document.getElementById('roomCode').textContent=code;
+  document.getElementById('createSec').style.display='none';
+  document.getElementById('joinSec').style.display='none';
+  document.getElementById('roomSec').style.display='flex';
+  document.getElementById('remWaitTxt').textContent='Sherik kutilmoqda...';
+  try{
+    peer=new Peer('cp2-'+code,{debug:0});
+    peer.on('open',()=>{myColor='w';showNotif('Xona: '+code,'inf');});
+    peer.on('connection',c=>{conn=c;setupConn('host');});
+    peer.on('error',e=>{showNotif('Xato: '+e.type,'err');cancelRoom();});
+  }catch(e){showNotif('Ulanish xatosi','err');}
+}
+function joinRoom(){
+  if(typeof Peer==='undefined'){showNotif('PeerJS yuklanmadi','err');return;}
+  const code=document.getElementById('joinInput').value.trim();
+  if(code.length!==4){showNotif('4 raqam kiriting','err');return;}
+  document.getElementById('createSec').style.display='none';
+  document.getElementById('joinSec').style.display='none';
+  document.getElementById('roomSec').style.display='flex';
+  document.getElementById('roomCode').textContent=code;
+  document.getElementById('remWaitTxt').textContent='Ulanilmoqda...';
+  try{
+    peer=new Peer(undefined,{debug:0});
+    peer.on('open',()=>{myColor='b';conn=peer.connect('cp2-'+code,{reliable:true});setupConn('guest');});
+    peer.on('error',e=>{showNotif('Xato: '+e.type,'err');cancelRoom();});
+  }catch(e){showNotif('Ulanish xatosi','err');}
+}
+function setupConn(role){
+  conn.on('open',()=>{
+    document.getElementById('remWaitTxt').textContent='✓ Ulandi!';
+    document.getElementById('remSpinner').style.display='none';
+    showNotif('Ulandi!','');
+    setTimeout(()=>{
+      mode='remote';flipped=myColor==='b';
+      showGameArea();initGame(saves['remote']);updateNames();
+    },600);
+  });
+  conn.on('data',d=>{try{handleRemote(JSON.parse(d));}catch(e){}});
+  conn.on('close',()=>showNotif('Sherik uzildi','err'));
+}
+function handleRemote(msg){
+  switch(msg.type){
+    case'move':
+      doMove(msg.from,msg.to,msg.promo);
+      setTimeout(()=>{if(premoves.length&&chess.turn()===myColor)executePremoves();},50);
+      break;
+    case'resign':showGOMsg((myColor==='w'?'OQ':'QORA')+' G\'ALABA QILDI!','Raqib taslim bo\'ldi');break;
+    case'drawOffer':document.getElementById('drawTxt').textContent='Raqib durrang taklif qildi. Qabul qilasizmi?';openModal('drawModal');break;
+    case'drawAccept':showGOMsg('🤝 DURRANG','Kelishuv bo\'yicha');break;
+    case'drawDecline':showNotif('Durrang rad etildi','inf');break;
+  }
+}
+function cancelRoom(){if(peer){peer.destroy();peer=null;}conn=null;document.getElementById('roomSec').style.display='none';document.getElementById('createSec').style.display='flex';}
+
+// ===== MODE SWITCH =====
+function switchMode(m){
+  if(chess&&mode!==m&&mode!=='settings')saveState();
+  abortAI=true;aiThinking=false;stopTimer();
+  premoves=[];premoveSel=null;premoveLegal=[];
+  mode=m;
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('on',['ai','local','remote','settings'][i]===m);});
+  if(m==='settings'){showSettings();return;}
+  if(m==='remote'){showRemote();return;}
+  showGameArea();
+  if(m==='ai'){
+    myColor=S.aiColor==='r'?(Math.random()<.5?'w':'b'):S.aiColor;
+    flipped=myColor==='b';
+  }else{myColor='w';flipped=false;}
+  const saved=loadState(m);saves[m]=saved;
+  setTimeout(()=>initGame(saved),30);
+}
+function showGameArea(){document.getElementById('gameArea').style.display='flex';document.getElementById('remoteScreen').style.display='none';document.getElementById('settingsScreen').style.display='none';}
+function showRemote(){document.getElementById('gameArea').style.display='none';document.getElementById('remoteScreen').style.display='flex';document.getElementById('settingsScreen').style.display='none';remOpt('create');}
+function showSettings(){document.getElementById('gameArea').style.display='none';document.getElementById('remoteScreen').style.display='none';document.getElementById('settingsScreen').style.display='block';}
+
+// ===== SAVE/LOAD =====
+function saveState(){
+  const s={moves:chess.history(),tW,tB,tInc,tMode};
+  saves[mode]=s;try{localStorage.setItem('cp_'+mode,JSON.stringify(s));}catch(e){}
+}
+function loadState(m){try{const s=localStorage.getItem('cp_'+m);return s?JSON.parse(s):null;}catch(e){return null;}}
+function saveSett(){
+  S.diff=parseInt(document.getElementById('diffSlider').value);
+  S.aiColor=document.getElementById('aiColorSel').value;
+  S.tc=document.getElementById('tcSel').value;
+  S.theme=document.getElementById('themeSel').value;
+  S.arrows=document.getElementById('arrowSel').value==='1';
+  S.premoves=document.getElementById('premoveSel').value==='1';
+  try{localStorage.setItem('cp_sett',JSON.stringify(S));}catch(e){}
+}
+function loadSett(){
+  try{const s=localStorage.getItem('cp_sett');if(s)S={...S,...JSON.parse(s)};}catch(e){}
+  document.getElementById('diffSlider').value=S.diff;
+  document.getElementById('diffVal').textContent=S.diff;
+  document.getElementById('aiColorSel').value=S.aiColor;
+  document.getElementById('tcSel').value=S.tc;
+  document.getElementById('themeSel').value=S.theme;
+  document.getElementById('arrowSel').value=S.arrows?'1':'0';
+  document.getElementById('premoveSel').value=S.premoves!==false?'1':'0';
+  applyTheme(S.theme);
+}
+function setDiff(v){document.getElementById('diffVal').textContent=v;S.diff=parseInt(v);saveSett();}
+const THEMES={brown:['#f0d9b5','#b58863'],green:['#eeeed2','#769656'],blue:['#dee3e6','#8ca2ad'],grey:['#d0d0d0','#808080']};
+function applyTheme(t){const[l,d]=THEMES[t]||THEMES.brown;document.documentElement.style.setProperty('--light',l);document.documentElement.style.setProperty('--dark',d);if(chess)renderBoard();}
+function clearData(){if(!confirm('Barcha ma\'lumotlar o\'chiriladi!'))return;try{localStorage.clear();}catch(e){}saves={ai:null,local:null,remote:null};showNotif('O\'chirildi','err');}
+function exportPGN(){const pgn=chess.pgn();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([pgn],{type:'text/plain'}));a.download='game.pgn';a.click();}
+
+// ===== HELPERS =====
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+let nT;
+function showNotif(msg,type){const n=document.getElementById('notif');n.textContent=msg;n.className='notif show'+(type==='err'?' err':type==='inf'?' inf':type==='pre'?' pre':'');clearTimeout(nT);nT=setTimeout(()=>n.classList.remove('show'),3000);}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft')undoMove();
+  else if(e.key==='ArrowRight')redoMove();
+  else if(e.key==='Escape'){deselect();clearPremoves();}
+  else if(e.key==='f')flipBoard();
+  else if(e.key==='h')getHint();
+  else if(e.key==='p')clearPremoves();
+});
+
+// ===== RESIZE =====
+window.addEventListener('resize',()=>{calcSQ();if(chess){renderBoard();renderCoords();}});
+
+// ===== BOOT =====
+function boot(){
+  if(typeof Chess==='undefined'){
+    document.getElementById('aitxt').textContent='Chess.js yuklanmoqda...';
+    setTimeout(boot,150);return;
+  }
+  calcSQ();loadSett();
+  mode='ai';
+  myColor=S.aiColor==='r'?(Math.random()<.5?'w':'b'):S.aiColor;
+  flipped=myColor==='b';
+  document.getElementById('aidot').className='dot ready';
+  document.getElementById('aitxt').textContent='AI tayyor';
+  const saved=loadState('ai');saves['ai']=saved;
+  initGame(saved);
+}
+</script>
+
+<script>
+(function(){
+  const urls=[
+    'https://unpkg.com/chess.js@0.10.3/chess.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js',
+    'https://cdn.jsdelivr.net/npm/chess.js@0.10.3/chess.js'
+  ];
+  function load(i){
+    if(i>=urls.length){document.getElementById('aitxt').textContent='Chess.js xatosi!';return;}
+    const s=document.createElement('script');s.src=urls[i];
+    s.onload=()=>boot();s.onerror=()=>load(i+1);
+    document.head.appendChild(s);
+  }
+  load(0);
+})();
+</script>
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js" onerror="console.warn('PeerJS offline')"></script>
+</body>
+</html>
